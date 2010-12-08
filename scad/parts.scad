@@ -6,53 +6,77 @@ tube_diameter = 15;
 tube_radius = tube_diameter / 2;
 
 // Distance from surface of one tube to surface of the other
-tube_distance = 60 - tube_diameter;
+tube_distance = 45;
 
 bracket_length = 20; // length along tube
 bracket_bridge_space = 2; // size of space which gets tightened
 bracket_wall_thickness = 2;
 
-hex_size = 6;
-hex_height = 3;
+hex_size = 4;
+hex_height = 2;
 
 bracket_top_groove_depth = 2;
 
 screw_hole_radius = 2;
 gearbox_hole_radius = 2;
-hex_size = 4;
 
+
+// Follow focus bracket and plate
 follow_focus_groove_size = 4;
 /// a^2 + b^2 = c^2, a = b = follow_focus_groove_size, c = sqrt(a^2 * 2)
 angle_groove_height = sqrt((follow_focus_groove_size * follow_focus_groove_size) * 2);
 
+// Angled rail connector
+lower_rails_x_offset = -100;
+lower_rails_z_offset = -40;
+angle_bracket_connector_height = tube_diameter - bracket_wall_thickness * 2;
+
+$t = 0.5;
 sin_t = sin($t * 180);
 
 /// Main
 
-translate([0, 100, 0])
-	bracketWithDSLR(20);
 
-translate([0, 0, 0])
+translate([0, -70, 0])
+	% rails(228.6); // 9"
+translate([lower_rails_x_offset, 120, lower_rails_z_offset])
+	% rails(457.2); // 18"
+
+railConnectorBrackets(lower_rails_x_offset, lower_rails_z_offset);
+
+translate([0, -40, 0]) bracketWithDSLR(20);
+
+translate([0, -120, 0]) followFocus();
+
+
+/// Display objects 
+
+module followFocus () {
 	bracketWithHexGroove();
-translate([0, 0, tube_radius + bracket_wall_thickness - bracket_top_groove_depth + sin_t * 4])
-	followFocusPlate();
-translate([sin_t * 8, 0, tube_radius + bracket_wall_thickness + 0.9 + sin_t * 8])
-	followFocusBracket();
+	translate([0, 0, tube_radius + bracket_wall_thickness - bracket_top_groove_depth + sin_t * 8])
+		followFocusPlate();
+	translate([sin_t * 8, 0, tube_radius + bracket_wall_thickness + 0.9 + sin_t * 16])
+		followFocusBracket();
+}
 
-// Semi-transparent rails
+/// Printable objects
 
-% rails(300);
+module railConnectorBrackets (x_offset, z_offset) {
+	difference () {
+		union () {
+			// Top rail, knob on bottom
+			basicBracketWithHex(bracket_length, bracket_wall_thickness);
 
-
-/// Final objects
-
-module tearDrop (height, radius) {
-	union () {
-		cylinder(h = height, r = radius, center = true, $fn = 20);
-		intersection () {
-			rotate(45, [0, 0, 1]) cube([radius * 2, radius * 2, height], center = true);
-			translate([2.75 * radius, 0, 0]) cube ([radius * 4, radius * 2, height + 1], center = true);
+			// Lower rail, knob on top
+			translate([x_offset, 0, z_offset])
+				rotate(180, [1, 0, 0])
+				basicBracketWithHex(bracket_length, bracket_wall_thickness);
+			railConnector(x_offset, z_offset);
 		}
+
+		basicBracket(bracket_length + 0.1, 0);
+		translate([x_offset, 0, z_offset])
+			basicBracket(bracket_length + 0.1, 0);
 	}
 }
 
@@ -137,31 +161,29 @@ module bracketWithDSLR (access_hole_height) {
 				cube(size = [ tube_distance + tube_radius * 2, bracket_length, nut_plate_height ], center = true);
 		}
 		
-		
 		union () {
 			basicBracket(bracket_length + 10, 0);
 			
 			// Screw hole
 			cylinder(h = nut_plate_height * 2 + 1, center = true, r = screw_hole_radius, $fn = 20);
-	/*
+	
 			// Nut hole, hex shaped
 			translate([ 0, 0, nut_plate_height])
 				rotate(30, [0, 0, 1])
 				regHexagon(hex_size, 4);
-	*/
 
 			// Nut hole, hex shaped, for bridge
 			translate([ 0, 0, bracket_wall_thickness + bracket_bridge_space / 2 + 1.1 ])
 				rotate(30, [0, 0, 1])
 				regHexagon(hex_size, 2);
 
-			// Nut and knob access
+			// Nut and knob access ("access hole")
 			translate([ 0, 0, access_hole_height / 2 + bracket_wall_thickness * 2 + bracket_bridge_space / 2 ])
-			cube(size = [
-				tube_distance - bracket_wall_thickness * 2,
-				bracket_length + 0.1,
-				access_hole_height
-			], center = true);
+				cube(size = [
+					tube_distance - bracket_wall_thickness * 2,
+					bracket_length + 1,
+					access_hole_height
+				], center = true);
 		}
 	}
 }
@@ -177,7 +199,6 @@ module bracketWithHexGroove () {
 			translate([ 0, 0, nut_plate_height / 2 ])
 				cube(size = [ tube_distance + tube_radius * 2, bracket_length, nut_plate_height ], center = true);
 		}
-		
 		
 		union () {
 			basicBracket(bracket_length + 10, 0);
@@ -201,11 +222,28 @@ module bracketWithHexGroove () {
 	}
 }
 
+/// Helper objects
+
 module rails (length) {
 	for (left_right = [-1, 1]) {
 		translate([ left_right * (tube_distance / 2 + tube_radius), 0, 0 ]) 
 			rotate(90, [ 1, 0, 0 ])
 			cylinder(h = length, r = tube_radius - 0.2, center = true, $fn = 100);
+	}
+}
+
+module basicBracketWithHex (length, expand_thickness) {
+	hex_plate_z = bracket_wall_thickness + bracket_bridge_space / 2 + hex_height / 2;
+	difference () {
+		basicBracket(length, expand_thickness);
+		
+		// Screw hole
+		cylinder(h = hex_plate_z * 3 + 1, center = true, r = screw_hole_radius, $fn = 20);
+
+		// Nut hole, hex shaped, for bridge
+		translate([ 0, 0, hex_plate_z + 0.1 ])
+			rotate(30, [0, 0, 1])
+			regHexagon(hex_size, hex_height);
 	}
 }
 
@@ -224,7 +262,7 @@ module basicBracket (length, expand_thickness) {
 			cube(size = [
 				tube_distance + tube_radius * 2,
 				length + 4 * excess,
-				expand_thickness * 2 + bracket_bridge_space
+				expand_thickness * 4 + bracket_bridge_space - 0.2
 			], center = true);
 		}
 
@@ -238,6 +276,49 @@ module basicBracket (length, expand_thickness) {
 					tube_radius * 2 + expand_thickness * 2 + 1
 				], center = true);
 			}
+		}
+	}
+}
+
+module railConnector (x_offset, z_offset) {
+	// Calculate the x offset from center tube to center tube
+	tube_x_offset = -1 * (abs(x_offset) - tube_distance - tube_diameter);
+	
+	angle_bracket_connector_width = sqrt(
+		abs(tube_x_offset * tube_x_offset) + abs(z_offset * z_offset)
+	);
+	
+	angle_bracket_connector_angle = atan(z_offset / tube_x_offset);
+
+	slot_width = angle_bracket_connector_width - tube_diameter * 2;	
+	slot_height = angle_bracket_connector_height - bracket_wall_thickness * 2;
+	
+	translate([x_offset / 2, 0, z_offset / 2])
+		rotate(-angle_bracket_connector_angle, [0, 1, 0])
+		difference () {
+			cube([angle_bracket_connector_width, bracket_length, angle_bracket_connector_height],
+				center = true);
+/*
+			union () {
+				cube([slot_width, bracket_length + 0.1, slot_height], center = true);
+				for (left_right = [-1, 1]) {
+					translate([left_right * slot_width / 2, 0, 0])
+						rotate(90, [1, 0, 0])
+						cylinder(r = slot_height / 2, h = bracket_length + 0.1, center = true);
+				}
+			}
+*/
+		}
+}
+
+// Generic modules
+
+module tearDrop (height, radius) {
+	union () {
+		cylinder(h = height, r = radius, center = true, $fn = 20);
+		intersection () {
+			rotate(45, [0, 0, 1]) cube([radius * 2, radius * 2, height], center = true);
+			translate([2.75 * radius, 0, 0]) cube ([radius * 4, radius * 2, height + 1], center = true);
 		}
 	}
 }
