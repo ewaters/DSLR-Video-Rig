@@ -1,54 +1,127 @@
 // Units are in mm
 
+/// Universal variables
+
+mm_per_inch = 25.4;
+
+// Stop time at this value
+$t = 0;
+
+render_fast = false;
+
+// Create a variable that goes from 0 .. 1 .. 0 over time as a curve
+sin_t = sin($t * 180);
+
 /// User variables
 
-tube_diameter = 15;
+tube_diameter = 5/8 * mm_per_inch;
 tube_radius = tube_diameter / 2;
 
 // Distance from surface of one tube to surface of the other
-tube_distance = 45;
+tube_distance = tube_diameter * 3;
 
 bracket_length = 15; // length along tube
 bracket_bridge_space = 2; // size of space which gets tightened
 bracket_wall_thickness = 2;
 
-hex_size = 4;
+hex_size = 4.5;
 hex_height = 2;
 
 bracket_top_groove_depth = 2;
 
 screw_hole_radius = 2;
-gearbox_hole_radius = 2;
+gearbox_hole_radius = 1;
+small_screw_hole_radius = 1.5;
 
+camera_hole_radius = (1/4 * mm_per_inch) / 2;
+camera_hex_size = 7;
 
 // Follow focus bracket and plate
 follow_focus_groove_size = 4;
-/// a^2 + b^2 = c^2, a = b = follow_focus_groove_size, c = sqrt(a^2 * 2)
+
+// a^2 + b^2 = c^2, a = b = follow_focus_groove_size, c = sqrt(a^2 * 2)
 angle_groove_height = sqrt((follow_focus_groove_size * follow_focus_groove_size) * 2);
 
 // Angled rail connector
-lower_rails_x_offset = -100;
+lower_rails_x_offset = -110;
 lower_rails_z_offset = -40;
 angle_bracket_connector_height = tube_diameter - bracket_wall_thickness * 2;
 
-$t = 0;
-sin_t = sin($t * 180);
+/// Ready to print objects
 
-/// Main
+/// Rail connector bracket, split (x 4)
+// rotate(90, [1, 0, 0]) railConnectorBracketSplit(lower_rails_x_offset, lower_rails_z_offset);
 
-translate([0, -70, 0])
-	% rails(228.6); // 9"
-translate([lower_rails_x_offset, 120, lower_rails_z_offset])
-	% rails(457.2); // 18"
+/// DSLR mounting bracket
+// rotate(90, [1, 0, 0]) bracketWithDSLR(15);
 
-railConnectorBrackets(lower_rails_x_offset, lower_rails_z_offset);
+/// Follow focus bracket
+// rotate(90, [1, 0, 0]) bracketWithHexGroove();
 
-translate([0, -40, 29]) rotate(180, [0, 0, 1]) % canonT2i();
-translate([0, -40, 0]) bracketWithDSLR(20);
+/// Follow focus plate
+// rotate(180, [1, 0, 0]) followFocusPlate();
 
-translate([0, -120, 0]) followFocus();
+/// Follow focus bracket
+// rotate(90, [0, 1, 0]) followFocusBracket();
+
+/// Preview objects
+
+rig();
+//previewSplitConnectorBrackets();
 
 /// Display objects 
+
+module previewSplitConnectorBrackets () {
+	translate([-1 * lower_rails_x_offset / 2, 0, -1 * lower_rails_z_offset / 2]) {
+		railConnectorBracketSplit(lower_rails_x_offset, lower_rails_z_offset);
+		
+		translate([lower_rails_x_offset - sin_t * 20, 0, lower_rails_z_offset - sin_t * 5])
+			rotate(180, [0, 1, 0])
+			railConnectorBracketSplit(lower_rails_x_offset, lower_rails_z_offset);
+	
+		translate([0, bracket_length * 2, 0])
+		railConnectorBrackets(lower_rails_x_offset, lower_rails_z_offset);
+	}
+}
+
+module rig () {
+	// Upper rails and objects
+
+	translate([0, -60, 0])
+		% rails(9 * mm_per_inch);
+
+	for (bracket_y_pos = [25, -60]) {
+		translate([0, bracket_y_pos, 0]) {
+			if (render_fast == true) {
+				railConnectorBrackets(lower_rails_x_offset, lower_rails_z_offset);
+			}
+			else {
+				railConnectorBracketSplit(lower_rails_x_offset, lower_rails_z_offset);
+				
+				translate([lower_rails_x_offset, 0, lower_rails_z_offset])
+					rotate(180, [0, 1, 0])
+					railConnectorBracketSplit(lower_rails_x_offset, lower_rails_z_offset);
+			}
+		}
+	}
+
+	bracketWithDSLR(15);
+
+	translate([0, 0, 30])
+		rotate(180, [0, 0, 1])
+		% canonT2i();
+
+	translate([0, -80, 0]) followFocus();
+	
+	// Lower rails	
+
+	translate([lower_rails_x_offset, 0, lower_rails_z_offset]) {
+
+
+		translate([0, 70, 0])
+			% rails(18 * mm_per_inch);
+	}
+}
 
 module canonT2i () {
 	width = 126;
@@ -89,7 +162,6 @@ module canonT2i () {
 		translate([viewfinder_x_offset, depth / 2, 5 + lens_mount_radius])
 			rotate(-90, [1, 0, 0])
 			canon85_18();
-
 	}
 }
 
@@ -101,8 +173,8 @@ module canon85_18 () {
 	canonLens(focus_diameter = 74.8, focus_offset = 29, focus_width = 17, length = 70, lens_diameter = 58);
 }
 
-// Draw canon lens, assuming we're centered at lens mount point
 module canonLens () {
+	// Draw canon lens, assuming we're centered at lens mount point
 	lens_mount_diameter = 65;
 	union () {
 		translate([0, 0, length / 2])
@@ -123,6 +195,16 @@ module followFocus () {
 }
 
 /// Printable objects
+
+module railConnectorBracketSplit (x_offset, z_offset) {
+	difference () {
+		union () {
+			basicBracketWithHex(bracket_length, bracket_wall_thickness);
+			railConnector(x_offset, z_offset, split = true);
+		}
+		basicBracket(bracket_length + 0.1, 0);
+	}
+}
 
 module railConnectorBrackets (x_offset, z_offset) {
 	difference () {
@@ -145,7 +227,7 @@ module railConnectorBrackets (x_offset, z_offset) {
 
 module followFocusBracket () {
 	plate_length = follow_focus_groove_size * 3;
-	plate_width = tube_distance + tube_radius * 2;
+	plate_width = tube_distance + tube_radius * 4;
 	attachment_height = 15;
 
 	difference () {
@@ -184,19 +266,20 @@ module followFocusBracket () {
 }
 
 module followFocusPlate () {
+	plate_length = tube_distance + tube_radius * 4;
 	difference () {
 		union () {
 			translate([0, 0, bracket_top_groove_depth / 2 ])
 				cube(size = [ tube_distance - 10, bracket_length, bracket_top_groove_depth ], center = true);
 			translate([0, 0, bracket_top_groove_depth + angle_groove_height / 4 + 0.5 - 0.1 ])
-				cube(size = [ tube_distance + tube_radius * 2, bracket_length, angle_groove_height / 2 + 1 ], center = true);
+				cube(size = [ plate_length, bracket_length, angle_groove_height / 2 + 1 ], center = true);
 		}
 	
 		union () {
 			// Angled groove
 			translate([0, 0, bracket_top_groove_depth + angle_groove_height / 2 + 1 - 0.1 ])
 				rotate(45, [1, 0, 0])
-				cube(size = [ tube_distance + tube_radius * 2 + 2, follow_focus_groove_size, follow_focus_groove_size ], center = true);
+				cube(size = [ plate_length + 2, follow_focus_groove_size, follow_focus_groove_size ], center = true);
 			
 			// Screw hole in center
 			translate([0, 0, bracket_top_groove_depth])
@@ -212,7 +295,10 @@ module followFocusPlate () {
 }
 
 module bracketWithDSLR (access_hole_height) {
-	nut_plate_height = bracket_bridge_space / 2 + bracket_wall_thickness + access_hole_height + 6;
+	nut_plate_height = bracket_bridge_space / 2 + bracket_wall_thickness + access_hole_height + 12;
+	// Since this has to support the camera, the length needs to be a bit larger
+	bracket_length = bracket_length * 2;
+	plate_width = tube_distance + tube_radius * 4;
 
 	difference () {
 		// Construct larger object which will be subtracted from
@@ -221,19 +307,24 @@ module bracketWithDSLR (access_hole_height) {
 	
 			// Nut plate
 			translate([ 0, 0, nut_plate_height / 2 ])
-				cube(size = [ tube_distance + tube_radius * 2, bracket_length, nut_plate_height ], center = true);
+				cube(size = [ plate_width, bracket_length, nut_plate_height ], center = true);
 		}
 		
 		union () {
 			basicBracket(bracket_length + 10, 0);
 			
-			// Screw hole
-			cylinder(h = nut_plate_height * 2 + 1, center = true, r = screw_hole_radius, $fn = 20);
+			// Screw hole for camera
+			translate([0, 0, nut_plate_height - (nut_plate_height - access_hole_height) / 2])
+				cylinder(h = nut_plate_height - access_hole_height, center = true, r = camera_hole_radius, $fn = 20);
 	
 			// Nut hole, hex shaped
 			translate([ 0, 0, nut_plate_height])
 				rotate(30, [0, 0, 1])
-				regHexagon(hex_size, 4);
+				regHexagon(camera_hex_size, 6);
+
+			// Screw hole for bridge
+			translate([0, 0, 0])
+				cylinder(h = nut_plate_height - access_hole_height, center = true, r = screw_hole_radius, $fn = 20);
 
 			// Nut hole, hex shaped, for bridge
 			translate([ 0, 0, bracket_wall_thickness + bracket_bridge_space / 2 + 1.1 ])
@@ -253,6 +344,7 @@ module bracketWithDSLR (access_hole_height) {
 
 module bracketWithHexGroove () {
 	nut_plate_height = bracket_wall_thickness + tube_radius;
+	nut_plate_length = tube_distance + tube_radius * 4;
 	difference () {
 		// Construct larger object which will be subtracted from
 		union () {
@@ -260,7 +352,7 @@ module bracketWithHexGroove () {
 	
 			// Nut plate
 			translate([ 0, 0, nut_plate_height / 2 ])
-				cube(size = [ tube_distance + tube_radius * 2, bracket_length, nut_plate_height ], center = true);
+				cube(size = [ nut_plate_length, bracket_length, nut_plate_height ], center = true);
 		}
 		
 		union () {
@@ -352,6 +444,8 @@ module basicBracket (length, expand_thickness) {
 }
 
 module railConnector (x_offset, z_offset) {
+	screw_hole_radius = small_screw_hole_radius;
+
 	// Calculate the x offset from center tube to center tube
 	tube_x_offset = -1 * (abs(x_offset) - tube_distance - tube_diameter);
 	
@@ -363,21 +457,50 @@ module railConnector (x_offset, z_offset) {
 
 	slot_width = angle_bracket_connector_width - tube_diameter * 2;	
 	slot_height = angle_bracket_connector_height - bracket_wall_thickness * 2;
-	
+
+	split_width = angle_bracket_connector_width / 2;	
+	split_endcrop_width = (angle_bracket_connector_width - split_width) / 2;
+
+	screw_recess_radius = screw_hole_radius * 2.5;
+	screw_recess_depth = angle_bracket_connector_height / 5;
+
 	translate([x_offset / 2, 0, z_offset / 2])
 		rotate(-angle_bracket_connector_angle, [0, 1, 0])
 		difference () {
 			cube([angle_bracket_connector_width, bracket_length, angle_bracket_connector_height],
 				center = true);
-/*
-			union () {
-				cube([slot_width, bracket_length + 0.1, slot_height], center = true);
-				for (left_right = [-1, 1]) {
-					translate([left_right * slot_width / 2, 0, 0])
-						rotate(90, [1, 0, 0])
-						cylinder(r = slot_height / 2, h = bracket_length + 0.1, center = true);
+			if (split == true) {
+				union () {
+					// Screw hole and recess
+					for (left_right = [-1, 1]) {
+						translate([left_right * split_width / 4, 0, 0])
+							rotate(90, [0, 0, 1])
+							cylinder(r = screw_hole_radius, h = angle_bracket_connector_height + 1, center = true, $fn = 20);
+							//tearDrop(radius = screw_hole_radius, height = angle_bracket_connector_height + 1);
+						translate([left_right * split_width / 4, 0, -1 * (angle_bracket_connector_height / 2) + screw_recess_depth / 2 - 0.1])
+							rotate(90, [0, 0, 1])
+							cylinder(r = screw_recess_radius, h = screw_recess_depth, center = true, $fn = 20);
+							//tearDrop(radius = screw_recess_radius, height = screw_recess_depth);
+					}
+
+					// Clip the top of the connector
+					translate([0, 0, angle_bracket_connector_height / 4])
+						cube([ split_width, bracket_length + 0.1, angle_bracket_connector_height / 2 + 0.1 ],
+							center = true);
+					// Clip the end of the connector
+					translate([ -1 * (split_width + split_endcrop_width) / 2, 0, 0 ])
+						cube([split_endcrop_width + 0.2, bracket_length + 0.2, angle_bracket_connector_height + 0.1 ], center = true);
 				}
 			}
+/*
+				union () {
+					cube([slot_width, bracket_length + 0.1, slot_height], center = true);
+					for (left_right = [-1, 1]) {
+						translate([left_right * slot_width / 2, 0, 0])
+							rotate(90, [1, 0, 0])
+							cylinder(r = slot_height / 2, h = bracket_length + 0.1, center = true);
+					}
+				}
 */
 		}
 }
