@@ -40,6 +40,7 @@ camera_hex_depth   = 0.219 * mm_per_inch * 1.05;
 // TUBES
 
 tube_diameter = 5/8 * mm_per_inch;
+tube_diameter = 16.5;  // may change after further printer calibration
 tube_radius   = tube_diameter / 2;
 tube_distance = tube_diameter * 3;
 
