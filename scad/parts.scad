@@ -53,7 +53,7 @@ handle_bar_height      = 4 * mm_per_inch;
 
 bracket_length = 15; // length along tube
 bracket_bridge_space = 2; // size of space which gets tightened
-bracket_wall_thickness = 2;
+bracket_wall_thickness = 3;
 
 // DSLR bracket
 dslr_bracket_length = bracket_length * 2;
