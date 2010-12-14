@@ -22,5 +22,5 @@ Assembly
 --------
 
 1. Buy the hardware needed (tubing for the rails, nuts, bolts, knobs, etc)
-2. Print the rewrapped parts on a RepRap
+2. Print the reprapped parts on a RepRap
 3. Assemble as desired
