@@ -94,6 +94,8 @@ angle_bracket_connector_height = tube_diameter - bracket_wall_thickness * 2;
 /// Handle bar bracket
 // rotate([90, 0, 0]) handleBarBracket();
 
+// counterWeightAssembly();
+
 /// Preview objects
 
 rig();
@@ -148,9 +150,12 @@ module rig () {
 	translate([lower_rails_x_offset, 0, lower_rails_z_offset]) {
 		translate([0, -130, 0])
 			rotate([0, 0, 180])
-		handleBarBracket(draw_handlebar = true);
+			handleBarBracket(draw_handlebar = true);
 		translate([0, 70, 0])
 			% rails(18 * mm_per_inch);
+
+		translate([0, 240, 0])
+			counterWeightAssembly();
 	}
 }
 
@@ -162,7 +167,114 @@ module followFocus () {
 		followFocusBracket();
 }
 
+module counterWeightAssembly () {
+	translate([0, 0, bracket_wall_thickness * 2 + sin_t * 10])
+		counterWeightPlate(draw_weight = true);
+	
+	for (forward_backward = [-1, 1]) {
+		translate([0, forward_backward * tube_distance / 3, 0])
+			counterWeightBracket();
+	}
+
+	translate([0, 0, 27]) counterWeightCap();
+}
+
 /// Printable objects
+
+module counterWeightCap () {
+	cyl_radius = (1 * mm_per_inch * 0.95) / 2; // 1in hole
+	cyl_height = 0.25 * mm_per_inch;
+	knob_height = 0.2 * mm_per_inch;
+	knob_radius = 1.25 * mm_per_inch;
+
+	difference () {
+		union () {
+			translate([0, 0, -1 * cyl_height / 2 + 0.1])
+				cylinder(r = cyl_radius, h = cyl_height, center = true);
+			translate([0, 0, knob_height / 2])
+				cylinder(r = knob_radius, h = knob_height, center = true);
+		}
+		cylinder(r = camera_hole_radius, h = knob_height + cyl_height + 1, center = true);
+		translate([0, 0, knob_height - camera_hex_depth / 2 + 0.1])
+			regHexagon(camera_hex_size, camera_hex_depth);
+	}
+	
+}
+
+module counterWeightPlate () {
+	cyl_height = 0.1 * mm_per_inch;
+	cyl_radius = (1 * mm_per_inch * 0.95) / 2; // 1in hole
+	plate_height = bracket_wall_thickness + hex_height;
+
+	translate ([0, 0, plate_height / 2])
+	difference () {
+		union () {
+			cube([tube_distance, tube_distance, plate_height], center = true);
+			translate([0, 0, plate_height / 2 - 0.1 + cyl_height / 2])
+				cylinder(r = cyl_radius, h = cyl_height, center = true);
+		}
+
+		// Screw holes in plate
+		for (corner = [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+			translate([ corner[0] * tube_distance / 3, corner[1] * tube_distance / 3, 0 ])
+			union () {
+				cylinder(r = screw_hole_radius, h = plate_height + 1, center = true, $fn = 20);
+				translate([0, 0, hex_height / 2])
+					cylinder(r = screw_washer_radius, h = hex_height, center = true, $fn = 20);
+			}
+		}
+		translate([0, 0, cyl_height / 2])
+			cylinder(r = camera_hole_radius, h = cyl_height + plate_height + 1, center = true);
+		
+		translate([0, 0, -1 * (cyl_height / 2)])
+			regHexagon(camera_hex_size, camera_hex_depth);
+	/*
+		// Screw holes in post
+		for (iter = [1:5]) {
+			translate([0, 0, plate_height / 2 + (cyl_height / 6) * iter])
+			rotate([90, 0, iter * 60])
+			cylinder(r = screw_hole_radius, h = cyl_radius * 2 + 1, center = true, $fn = 20);
+		}
+	*/
+	}
+	
+	weight_height = 0.5 * mm_per_inch;
+	weight_radius = 2 * mm_per_inch;
+
+	if (draw_weight) {
+		% translate([0, 0, plate_height + weight_height / 2 + 1])
+			difference () {
+				cylinder(r = weight_radius, h = weight_height, center = true);
+				cylinder(r = cyl_radius * 1.05, h = weight_height + 0.1, center = true);
+			}
+	}
+
+}
+
+module counterWeightBracket () {
+	plate_height = bracket_wall_thickness + hex_height;
+
+	difference () {
+		union () {
+			basicBracket(bracket_length, bracket_wall_thickness);
+			for (left_right = [-1, 1]) {
+				translate([left_right * (tube_distance / 2 + tube_radius / 2), 0, (tube_radius + bracket_wall_thickness) / 2])
+					cube([tube_radius, bracket_length, tube_radius + bracket_wall_thickness], center = true);
+			}
+		}
+
+		basicBracket(bracket_length + 2, 0);
+	
+		for (left_right = [-1, 1]) {
+			translate([ left_right * (tube_distance / 3), 0, 0 ]) {
+				cylinder(r = screw_hole_radius, h = tube_diameter + bracket_wall_thickness * 2 + 1, center = true, $fn = 20);
+				translate([0, 0, -1 * (bracket_wall_thickness + bracket_bridge_space / 2 + hex_height / 2)])
+				rotate(30, [0, 0, 1])
+				regHexagon(hex_size, hex_height);
+			}
+		}
+	}
+}
 
 module handleBarBracket () {
 	overhang_width = handle_bar_radius * 2;
