@@ -44,8 +44,8 @@ retaining_nut_size = 3;
 retaining_nut_depth = 1;
 
 bearing_inner_dia = 4;
-bearing_outer_dia = 11;
-bearing_height = 4;
+bearing_outer_dia = 8;
+bearing_height = 3;
 
 // TUBES
 
@@ -75,6 +75,7 @@ dslr_top_thickness  = 15;
 camera_z = dslr_access_height + dslr_top_thickness + bracket_bridge_space / 2 + bracket_wall_thickness;
 
 // Follow focus bracket and plate
+follow_focus_bracket_length = 33;
 follow_focus_groove_size = 5; // angle groove
 bracket_top_groove_depth = follow_focus_plate_bolt_hex_depth;
 angle_groove_height = sqrt(pow(follow_focus_groove_size, 2) * 2);
@@ -108,7 +109,9 @@ angle_bracket_connector_height = tube_diameter - bracket_wall_thickness * 2;
 
 rig();
 // previewSplitConnectorBrackets();
+// followFocusRig();
 
+// miterGear();
 // followFocus();
 // gearBox();
 
@@ -140,13 +143,30 @@ module previewSplitConnectorBrackets () {
 	}
 }
 
+module followFocusRig () {
+	// Upper rails and objects
+
+	translate([0, 105, 0]) {
+		translate([0, -60, 0])
+			% rails(9 * mm_per_inch);
+	
+		bracketWithDSLR();
+	
+		translate([0, 0, camera_z])
+			rotate(180, [0, 0, 1])
+			% canonT2i();
+	}
+
+	followFocus();
+}
+
 module rig () {
 	// Upper rails and objects
 
 	translate([0, -60, 0])
 		% rails(9 * mm_per_inch);
 
-	for (bracket_y_pos = [25, -70]) {
+	for (bracket_y_pos = [25, -60]) {
 		translate([0, bracket_y_pos, 0]) {
 			if (render_fast == true) {
 				railConnectorBrackets(lower_rails_x_offset, lower_rails_z_offset);
@@ -184,13 +204,15 @@ module rig () {
 }
 
 module followFocus () {
-	bracketWithHexGroove();
+	bracketWithHexGroove(bracket_length = follow_focus_bracket_length);
 	translate([0, 0, tube_radius + bracket_wall_thickness - bracket_top_groove_depth + sin_t * 8])
 		followFocusPlate();
-	translate([sin_t * 8, 0, tube_radius + bracket_wall_thickness + 0.9 + sin_t * 16])
-		followFocusBracket();
-	translate([55, -13.2, 33]) rotate([180, 0, 0])
-		gearBox();
+	translate([sin_t * 8, 0, sin_t * 16]) {
+		translate([0, 0, tube_radius + bracket_wall_thickness + 0.9])
+			followFocusBracket();
+		translate([54.75, 0, 33]) rotate([180, 0, 0])
+			gearBox();
+	}
 }
 
 module counterWeightAssembly () {
@@ -211,8 +233,11 @@ module gearBox () {
 	show_gears = true;
 
 	cube_wall_thickness = 2;
-	cube_size   = 29.1 + bearing_height + 4;
+	cube_size   = follow_focus_bracket_length - cube_wall_thickness * 2;
 	cube_height = 28;
+
+	lens_shaft_x_offset = -3;
+	handle_shaft_y_offset = 3;
 
 	difference () {
 		cube([ cube_size + cube_wall_thickness * 2, cube_size + cube_wall_thickness * 2, cube_height ], center = true);
@@ -220,47 +245,60 @@ module gearBox () {
 			cube([cube_size, cube_size, cube_height], center = true);
 		
 		// Shaft holes
-		rotate([90, 0, 0]) translate([-5, 0, (cube_size + cube_wall_thickness) / 2])
+		rotate([90, 0, 0]) translate([lens_shaft_x_offset, 0, (cube_size + cube_wall_thickness) / 2])
 			cylinder(r = follow_focus_shaft_radius * 1.05, h =  cube_wall_thickness + 1, center = true, $fn = 20);
-		rotate([0, -90, 0]) translate([0, 5, -1 * (cube_size + cube_wall_thickness) / 2])
+		rotate([0, -90, 0]) translate([0, handle_shaft_y_offset, -1 * (cube_size + cube_wall_thickness) / 2])
 			cylinder(r = follow_focus_shaft_radius * 1.05, h =  cube_wall_thickness + 1, center = true, $fn = 20);
 	}
+
+	// ground_steel 8mm;
+
 
 	if (show_gears) {
 		
 		// Shafts
-		rotate([90, 0, 0]) translate([-5, 0, -1 * (cube_size + cube_wall_thickness) / 2 + 2])
-			% cylinder(r = follow_focus_shaft_radius, h = 50, center = false, $fn = 20);
+		rotate([90, 0, 0]) translate([lens_shaft_x_offset, 0, -1 * (cube_size + cube_wall_thickness) / 2 + 1])
+			% cylinder(r = follow_focus_shaft_radius, h = 46, center = false, $fn = 20);
 
-		rotate([0, 90, 0]) translate([0, 5, 2])
-			% cylinder(r = follow_focus_shaft_radius, h = 40, center = false, $fn = 20);
+		rotate([0, 90, 0]) translate([0, handle_shaft_y_offset, 2])
+			% cylinder(r = follow_focus_shaft_radius, h = 30, center = false, $fn = 20);
 
-		// Focus gear
-		% rotate([90, 0, 0]) translate([-5, 0, 30]) cylinder(r = 25, h = 4, center = true);
-	
-		translate([6, -11, 0]) {
-			translate([-11, -1 * (bearing_height/2 + 3), 0]) rotate([-90, 0, 0]) bearing();
-			translate([-11, 25 + bearing_height/2, 0]) rotate([-90, 0, 0]) bearing();
-			translate([-11, -2, 0]) rotate([-90, 10, 0]) miterGear();
+		// Lens shaft gear and bearings
+		translate([lens_shaft_x_offset, 0, 0]) rotate([-90, 0, 0]) translate([0, 0, -10])  {
+			rotate([0, 0, 10]) miterGear();
+			translate([0, 0, -1 * (bearing_height / 2) - 1]) bearing();
+			translate([0, 0, 21]) bearing();
+		
+			// Focus gear
+			% translate([0, 0, -17]) cylinder(r = 22, h = 8, center = true);
+		}
 
-			translate([7 + bearing_height/2 + 1, 16, 0]) rotate([0, -90, 0]) bearing();
-			translate([14 + bearing_height/2 + 1, 16, 0]) rotate([0, -90, 0]) bearing();
-			translate([7, 16, 0]) rotate([0, -90, 0]) miterGear();
+		// Handle shaft gear and bearings
+		translate([0, handle_shaft_y_offset, 0]) rotate([0, -90, 0]) translate([0, 0, -10]) {
+			miterGear();
+			translate([0, 0, -1 * (bearing_height / 2) - 1]) bearing();
+			translate([0, 0, -1 * (bearing_height / 2) - 7.5]) bearing();
+
+			// Handle
+			union () {
+				% translate([0, 0, -17]) cylinder(r = 30, h = 8, center = true);
+				% translate([0, 0, -24]) cylinder(r = 22, h = 8, center = true);
+			}
 		}
 	}
 }
 
 module miterGear () {	
 	difference () {
-		scale (1.5) translate([0, 0, 4]) {
+		scale (1.1) translate([0, 0, 4]) {
 			difference () {
 				union () {
 					rotate([90, 0, 0])
 						import_stl("lm0_8_20.stl", convexity = 5);
 		
 					// Reduce overhang distance
-					translate([0, 0, -4.7])
-						cylinder(r = 7.3, h = 8, center = true);
+					// translate([0, 0, -4.7])
+						// cylinder(r = 7.3, h = 8, center = true);
 			
 					// Fill existing hole
 					translate([0, 0, -1])
@@ -280,8 +318,8 @@ module miterGear () {
 
 		// Holding screw hole
 		for (angle = [0, -120, 120]) {
-			translate([0, 0, 2.5]) rotate([90, 0, angle]) {
-				translate([0, -3/2, 7])
+			translate([0, 0, 2.0]) rotate([90, 0, angle]) {
+				translate([0, -3/2, 4])
 					cube([ retaining_nut_size, retaining_nut_size + 3, retaining_nut_depth ], center = true);
 				cylinder(r = retaining_screw_radius, h = 12, center = false, $fn = 20);
 				
@@ -456,18 +494,19 @@ module railConnectorBrackets (x_offset, z_offset) {
 }
 
 module followFocusBracket () {
-	plate_length = follow_focus_groove_size * 3;
-	plate_width = tube_distance + tube_radius * 4;
+	gearbox_overhang = 30;
+	plate_length = follow_focus_bracket_length;
+	plate_width = tube_distance + tube_radius * 4 + gearbox_overhang;
 	attachment_height = 15;
 
 	difference () {
 		union () {	
 			// Angled groove insert
-			translate([0, 0, angle_groove_height / 2])
+			translate([gearbox_overhang / 2, 0, angle_groove_height / 2])
 				rotate(45, [1, 0, 0])
 				cube(size = [ plate_width, follow_focus_groove_size, follow_focus_groove_size ], center = true);
 			// Top plate
-			translate([0, 0, angle_groove_height * 0.75 ])
+			translate([gearbox_overhang / 2, 0, angle_groove_height * 0.75 ])
 				cube(size = [ plate_width, plate_length, angle_groove_height * 0.5 ], center = true);
 
 	/*
@@ -499,18 +538,19 @@ module followFocusBracket () {
 }
 
 module followFocusPlate () {
-	plate_length = tube_distance + tube_radius * 4;
+	gearbox_overhang = 30;
+	plate_length = tube_distance + tube_radius * 4 + gearbox_overhang;
 	difference () {
 		union () {
 			translate([0, 0, bracket_top_groove_depth / 2 ])
-				cube(size = [ tube_distance - 10, bracket_length, bracket_top_groove_depth ], center = true);
-			translate([0, 0, bracket_top_groove_depth + angle_groove_height / 4 + 0.5 - 0.1 ])
-				cube(size = [ plate_length, bracket_length, angle_groove_height / 2 + 1 ], center = true);
+				cube(size = [ tube_distance - 10, follow_focus_bracket_length, bracket_top_groove_depth ], center = true);
+			translate([gearbox_overhang / 2, 0, bracket_top_groove_depth + angle_groove_height / 4 + 0.5 - 0.1 ])
+				cube(size = [ plate_length, follow_focus_bracket_length, angle_groove_height / 2 + 1 ], center = true);
 		}
 	
 		union () {
 			// Angled groove
-			translate([0, 0, bracket_top_groove_depth + angle_groove_height / 2 + 1 - 0.1 ])
+			translate([gearbox_overhang / 2, 0, bracket_top_groove_depth + angle_groove_height / 2 + 1 - 0.1 ])
 				rotate(45, [1, 0, 0])
 				cube(size = [ plate_length + 2, follow_focus_groove_size, follow_focus_groove_size ], center = true);
 			
