@@ -1,5 +1,6 @@
 use <camera.scad>;
 
+
 // Units are in mm
 
 /// Universal variables
@@ -36,6 +37,15 @@ gearbox_hole_radius = 1;
 camera_hole_radius = ((0.246 * mm_per_inch) / 2) * 1.05;
 camera_hex_size    = 0.432 * mm_per_inch * 1.05;
 camera_hex_depth   = 0.219 * mm_per_inch * 1.05;
+
+follow_focus_shaft_radius = 4 / 2;
+retaining_screw_radius = screw_hole_radius / 2;
+retaining_nut_size = 3;
+retaining_nut_depth = 1;
+
+bearing_inner_dia = 4;
+bearing_outer_dia = 11;
+bearing_height = 4;
 
 // TUBES
 
@@ -94,14 +104,28 @@ angle_bracket_connector_height = tube_diameter - bracket_wall_thickness * 2;
 /// Handle bar bracket
 // rotate([90, 0, 0]) handleBarBracket();
 
-// counterWeightAssembly();
-
 /// Preview objects
 
 rig();
 // previewSplitConnectorBrackets();
 
+// followFocus();
+// gearBox();
+
+// counterWeightAssembly();
+
 /// Display objects 
+
+module bearing (inner_dia, outer_dia, height) {
+	inner_dia = bearing_inner_dia;
+	outer_dia = bearing_outer_dia;
+	height    = bearing_height;
+	
+	difference () {
+		cylinder(r = outer_dia / 2, h = height, center = true);
+		cylinder(r = inner_dia / 2, h = height + 0.1, center = true, $fn = 20);
+	}
+}
 
 module previewSplitConnectorBrackets () {
 	translate([-1 * lower_rails_x_offset / 2, 0, -1 * lower_rails_z_offset / 2]) {
@@ -122,7 +146,7 @@ module rig () {
 	translate([0, -60, 0])
 		% rails(9 * mm_per_inch);
 
-	for (bracket_y_pos = [25, -60]) {
+	for (bracket_y_pos = [25, -70]) {
 		translate([0, bracket_y_pos, 0]) {
 			if (render_fast == true) {
 				railConnectorBrackets(lower_rails_x_offset, lower_rails_z_offset);
@@ -143,7 +167,7 @@ module rig () {
 		rotate(180, [0, 0, 1])
 		% canonT2i();
 
-	translate([0, -80, 0]) followFocus();
+	translate([0, -95, 0]) followFocus();
 	
 	// Lower rails	
 
@@ -165,6 +189,8 @@ module followFocus () {
 		followFocusPlate();
 	translate([sin_t * 8, 0, tube_radius + bracket_wall_thickness + 0.9 + sin_t * 16])
 		followFocusBracket();
+	translate([55, -13.2, 33]) rotate([180, 0, 0])
+		gearBox();
 }
 
 module counterWeightAssembly () {
@@ -176,14 +202,97 @@ module counterWeightAssembly () {
 			counterWeightBracket();
 	}
 
-	translate([0, 0, 27]) counterWeightCap();
+	translate([0, 0, 23]) counterWeightCap();
 }
 
 /// Printable objects
 
+module gearBox () {
+	show_gears = true;
+
+	cube_wall_thickness = 2;
+	cube_size   = 29.1 + bearing_height + 4;
+	cube_height = 28;
+
+	difference () {
+		cube([ cube_size + cube_wall_thickness * 2, cube_size + cube_wall_thickness * 2, cube_height ], center = true);
+		translate([0, 0, cube_wall_thickness])
+			cube([cube_size, cube_size, cube_height], center = true);
+		
+		// Shaft holes
+		rotate([90, 0, 0]) translate([-5, 0, (cube_size + cube_wall_thickness) / 2])
+			cylinder(r = follow_focus_shaft_radius * 1.05, h =  cube_wall_thickness + 1, center = true, $fn = 20);
+		rotate([0, -90, 0]) translate([0, 5, -1 * (cube_size + cube_wall_thickness) / 2])
+			cylinder(r = follow_focus_shaft_radius * 1.05, h =  cube_wall_thickness + 1, center = true, $fn = 20);
+	}
+
+	if (show_gears) {
+		
+		// Shafts
+		rotate([90, 0, 0]) translate([-5, 0, -1 * (cube_size + cube_wall_thickness) / 2 + 2])
+			% cylinder(r = follow_focus_shaft_radius, h = 50, center = false, $fn = 20);
+
+		rotate([0, 90, 0]) translate([0, 5, 2])
+			% cylinder(r = follow_focus_shaft_radius, h = 40, center = false, $fn = 20);
+
+		// Focus gear
+		% rotate([90, 0, 0]) translate([-5, 0, 30]) cylinder(r = 25, h = 4, center = true);
+	
+		translate([6, -11, 0]) {
+			translate([-11, -1 * (bearing_height/2 + 3), 0]) rotate([-90, 0, 0]) bearing();
+			translate([-11, 25 + bearing_height/2, 0]) rotate([-90, 0, 0]) bearing();
+			translate([-11, -2, 0]) rotate([-90, 10, 0]) miterGear();
+
+			translate([7 + bearing_height/2 + 1, 16, 0]) rotate([0, -90, 0]) bearing();
+			translate([14 + bearing_height/2 + 1, 16, 0]) rotate([0, -90, 0]) bearing();
+			translate([7, 16, 0]) rotate([0, -90, 0]) miterGear();
+		}
+	}
+}
+
+module miterGear () {	
+	difference () {
+		scale (1.5) translate([0, 0, 4]) {
+			difference () {
+				union () {
+					rotate([90, 0, 0])
+						import_stl("lm0_8_20.stl", convexity = 5);
+		
+					// Reduce overhang distance
+					translate([0, 0, -4.7])
+						cylinder(r = 7.3, h = 8, center = true);
+			
+					// Fill existing hole
+					translate([0, 0, -1])
+					 	cylinder(r = 3, h = 8, center = true);
+				}
+	
+				// Clip off bottom
+				translate([0, 0, -6.5])
+					cylinder(r = 8, h = 5, center = true);
+	
+			}
+		}
+
+		// Screw hole
+		translate([0, 0, 4.5])
+			cylinder(r = follow_focus_shaft_radius, h = 14, center = true, $fn = 20);
+
+		// Holding screw hole
+		for (angle = [0, -120, 120]) {
+			translate([0, 0, 2.5]) rotate([90, 0, angle]) {
+				translate([0, -3/2, 7])
+					cube([ retaining_nut_size, retaining_nut_size + 3, retaining_nut_depth ], center = true);
+				cylinder(r = retaining_screw_radius, h = 12, center = false, $fn = 20);
+				
+			}
+		}
+	}
+}
+
 module counterWeightCap () {
-	cyl_radius = (1 * mm_per_inch * 0.95) / 2; // 1in hole
-	cyl_height = 0.25 * mm_per_inch;
+	cyl_radius = 12;
+	cyl_height = 5;
 	knob_height = 0.2 * mm_per_inch;
 	knob_radius = 1.25 * mm_per_inch;
 
@@ -202,8 +311,8 @@ module counterWeightCap () {
 }
 
 module counterWeightPlate () {
-	cyl_height = 0.1 * mm_per_inch;
-	cyl_radius = (1 * mm_per_inch * 0.95) / 2; // 1in hole
+	cyl_height = 4;
+	cyl_radius = 12;
 	plate_height = bracket_wall_thickness + hex_height;
 
 	translate ([0, 0, plate_height / 2])
@@ -238,14 +347,19 @@ module counterWeightPlate () {
 	*/
 	}
 	
-	weight_height = 0.5 * mm_per_inch;
-	weight_radius = 2 * mm_per_inch;
+	// 1-1/4 lb weight is: OD: 9.6cm, ID: 2.5cm, Height: 1cm
+	weight_height = 10;
+	weight_radius = 96 / 2;
+	weight_inner_radius = 25 / 2;
+
+	// 2-1/2 lb weight is: OD: 12.5cm, ID: 2.5cm, Height: 1.25cm
+	// 5 lb weight is: OD: 16cm, ID: 2.5cm, Height: 2cm
 
 	if (draw_weight) {
-		% translate([0, 0, plate_height + weight_height / 2 + 1])
+		% translate([0, 0, plate_height + weight_height / 2 + 0.1])
 			difference () {
 				cylinder(r = weight_radius, h = weight_height, center = true);
-				cylinder(r = cyl_radius * 1.05, h = weight_height + 0.1, center = true);
+				cylinder(r = weight_inner_radius, h = weight_height + 0.1, center = true);
 			}
 	}
 
@@ -355,6 +469,8 @@ module followFocusBracket () {
 			// Top plate
 			translate([0, 0, angle_groove_height * 0.75 ])
 				cube(size = [ plate_width, plate_length, angle_groove_height * 0.5 ], center = true);
+
+	/*
 			
 			// Attachment point of gearbox and gear
 			translate([plate_width / 2 - plate_length / 2, 0, angle_groove_height + attachment_height / 2 - 0.1])
@@ -364,6 +480,8 @@ module followFocusBracket () {
 					rotate(90, [0, 1, 0])
 					cylinder(r = gearbox_hole_radius, h = plate_length + 0.1, center = true, $fn = 20);
 				}
+	*/
+	
 		}
 		union () {
 			// Screw slide hole
@@ -441,7 +559,7 @@ module bracketWithDSLR () {
 				cylinder(h = nut_plate_height - dslr_access_height, center = true, r = screw_hole_radius, $fn = 20);
 
 			// Nut hole, hex shaped, for bridge
-			translate([ 0, 0, bracket_wall_thickness + bracket_bridge_space / 2 + 1.1 ])
+			translate([ 0, 0, bracket_wall_thickness * 2 + bracket_bridge_space / 2 - 0.9  ])
 				rotate(30, [0, 0, 1])
 				regHexagon(hex_size, 2);
 
