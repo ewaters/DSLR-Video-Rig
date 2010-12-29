@@ -107,11 +107,13 @@ angle_bracket_connector_height = tube_diameter - bracket_wall_thickness * 2;
 
 /// Preview objects
 
-rig();
+// shoulderStrapBracket();
+
+// rig();
 // previewSplitConnectorBrackets();
 // followFocusRig();
 
-// miterGear();
+miterGear();
 // followFocus();
 // gearBox();
 
@@ -281,20 +283,22 @@ module gearBox () {
 
 			// Handle
 			union () {
-				% translate([0, 0, -17]) cylinder(r = 30, h = 8, center = true);
-				% translate([0, 0, -24]) cylinder(r = 22, h = 8, center = true);
+				% translate([0, 0, -17]) cylinder(r2 = 30, r1 = 22, h = 8, center = true);
+				% translate([0, 0, -24]) cylinder(r = 22, h = 12, center = true);
 			}
 		}
 	}
 }
 
-module miterGear () {	
+module miterGear () {
+	
 	difference () {
 		scale (1.1) translate([0, 0, 4]) {
 			difference () {
 				union () {
 					rotate([90, 0, 0])
-						import_stl("lm0_8_20.stl", convexity = 5);
+						//import_stl("lm0_8_20.stl", convexity = 5);
+						scale(0.44) import_stl("sm2_16.stl", convexity = 5);
 		
 					// Reduce overhang distance
 					// translate([0, 0, -4.7])
@@ -329,7 +333,7 @@ module miterGear () {
 }
 
 module counterWeightCap () {
-	cyl_radius = 12;
+	cyl_radius = 13;
 	cyl_height = 5;
 	knob_height = 0.2 * mm_per_inch;
 	knob_radius = 1.25 * mm_per_inch;
@@ -341,7 +345,7 @@ module counterWeightCap () {
 			translate([0, 0, knob_height / 2])
 				cylinder(r = knob_radius, h = knob_height, center = true);
 		}
-		cylinder(r = camera_hole_radius, h = knob_height + cyl_height + 1, center = true);
+		cylinder(r = camera_hole_radius, h = knob_height + cyl_height + 1, center = true, $fn = 50);
 		translate([0, 0, knob_height - camera_hex_depth / 2 + 0.1])
 			regHexagon(camera_hex_size, camera_hex_depth);
 	}
@@ -350,7 +354,7 @@ module counterWeightCap () {
 
 module counterWeightPlate () {
 	cyl_height = 4;
-	cyl_radius = 12;
+	cyl_radius = 13;
 	plate_height = bracket_wall_thickness + hex_height;
 
 	translate ([0, 0, plate_height / 2])
@@ -401,6 +405,50 @@ module counterWeightPlate () {
 			}
 	}
 
+}
+
+module shoulderStrapBracket () {
+	column_width = ((tube_distance + tube_diameter * 2 + bracket_wall_thickness * 2) - hex_size * 2) / 2;
+	column_offset_x = column_width / 2 + hex_size;
+	column_height = 32;  // height from origin
+	strap_width  = column_width * 0.7;
+	strap_height = 3;
+
+	support_width = (column_width - strap_width) / 2;
+	support_height = strap_height * 2 + bracket_length;
+
+	top_plate_thickness = bracket_wall_thickness;
+
+	difference () {
+		union () {
+			basicBracketWithHex(bracket_length, bracket_wall_thickness);
+			for (left_right = [-1, 1]) {
+				// Initial column
+				translate([left_right * column_offset_x, 0, column_height / 2])
+					cube([column_width, bracket_length, column_height], center = true);
+
+				// Add the half-cylinder for smooth strap contact
+				translate([left_right * column_offset_x, 0, column_height + strap_height + bracket_length / 2]) union () {
+					rotate([0, 90, 0]) cylinder(r = bracket_length / 2, h = strap_width, center = true);
+					translate([0, bracket_length / 4, 0]) cube([strap_width, bracket_length / 2, bracket_length], center = true);
+				}
+
+				// Add support to encompass the half-cylinder
+				for (left_right_2 = [-1, 1]) {
+					translate([left_right * column_offset_x + left_right_2 * (column_width / 2 - support_width / 2), 0, column_height + support_height / 2])
+						cube([support_width, bracket_length, support_height + 0.1], center = true);
+				}			
+			}
+			// Top plate
+			translate([0, 0, column_height + support_height + top_plate_thickness / 2])
+				cube([tube_distance + tube_diameter * 2 + bracket_wall_thickness * 2, bracket_length, top_plate_thickness], center = true);
+		}
+
+		// Bracket opening
+		basicBracket(bracket_length + 2, 0);
+
+		// Strap opening
+	}
 }
 
 module counterWeightBracket () {
